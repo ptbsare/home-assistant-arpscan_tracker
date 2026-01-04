@@ -80,6 +80,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     interface = entry.data.get(CONF_INTERFACE)
     network = entry.data.get(CONF_NETWORK)
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    # Defensive check: ensure scan_interval is an int (might be timedelta from corrupted config)
+    if isinstance(scan_interval, timedelta):
+        scan_interval = int(scan_interval.total_seconds())
     timeout = entry.options.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
     resolve_hostnames = entry.options.get(CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES)
     include_list = entry.options.get(CONF_INCLUDE, [])

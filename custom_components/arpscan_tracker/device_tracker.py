@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, cast
 
 import homeassistant.util.dt as dt_util
@@ -40,6 +40,9 @@ async def async_setup_entry(
     """Set up device tracker entities from a config entry."""
     coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
     consider_home = entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
+    # Defensive check: ensure consider_home is an int (might be timedelta from corrupted config)
+    if isinstance(consider_home, timedelta):
+        consider_home = int(consider_home.total_seconds())
     interface = entry.data.get(CONF_INTERFACE, "unknown")
 
     # Track which devices we've already created entities for
