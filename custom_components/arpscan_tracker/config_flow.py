@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -32,6 +33,20 @@ from .const import (
 from .scanner import get_available_interfaces, get_default_interface, get_interface_network
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _normalize_time_value(value: int | float | timedelta, default: int) -> int:
+    """Convert timedelta or numeric value to integer seconds.
+
+    Home Assistant's device_tracker schema applies cv.time_period to consider_home,
+    which converts integers to timedelta objects before they reach our import handler.
+    This function ensures we always store integer seconds in the config entry.
+    """
+    if value is None:
+        return default
+    if isinstance(value, timedelta):
+        return int(value.total_seconds())
+    return int(value)
 
 
 def _get_interface_schema(interfaces: list[str], default: str | None) -> vol.Schema:
@@ -195,8 +210,12 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_NETWORK: network,
             },
             options={
-                CONF_SCAN_INTERVAL: import_config.get("interval_seconds", DEFAULT_SCAN_INTERVAL),
-                CONF_CONSIDER_HOME: import_config.get("consider_home", DEFAULT_CONSIDER_HOME),
+                CONF_SCAN_INTERVAL: _normalize_time_value(
+                    import_config.get("interval_seconds"), DEFAULT_SCAN_INTERVAL
+                ),
+                CONF_CONSIDER_HOME: _normalize_time_value(
+                    import_config.get("consider_home"), DEFAULT_CONSIDER_HOME
+                ),
                 CONF_TIMEOUT: DEFAULT_TIMEOUT,
                 CONF_INCLUDE: import_config.get(CONF_INCLUDE, []),
                 CONF_EXCLUDE: import_config.get(CONF_EXCLUDE, []),
