@@ -198,6 +198,11 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
                     self._attr_name = last_state.name
 
     @property
+    def available(self) -> bool:
+        """Return True, device trackers are always available."""
+        return True
+
+    @property
     def source_type(self) -> SourceType:
         """Return the source type."""
         return SourceType.ROUTER
