@@ -218,10 +218,12 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
             },
             options={
                 CONF_SCAN_INTERVAL: _normalize_time_value(
-                    import_config.get("interval_seconds"), DEFAULT_SCAN_INTERVAL
+                    import_config.get("interval_seconds", DEFAULT_SCAN_INTERVAL),
+                    DEFAULT_SCAN_INTERVAL,
                 ),
                 CONF_CONSIDER_HOME: _normalize_time_value(
-                    import_config.get("consider_home"), DEFAULT_CONSIDER_HOME
+                    import_config.get("consider_home", DEFAULT_CONSIDER_HOME),
+                    DEFAULT_CONSIDER_HOME,
                 ),
                 CONF_TIMEOUT: DEFAULT_TIMEOUT,
                 CONF_INCLUDE: import_config.get(CONF_INCLUDE, []),
