@@ -102,7 +102,10 @@ def get_available_interfaces() -> list[str]:
                 operstate_file = f"{net_dir}/{iface}/operstate"
                 if os.path.exists(operstate_file):
                     with open(operstate_file) as f:
-                        if f.read().strip() == "up":
+                        state = f.read().strip()
+                        # Include "up" and "unknown" - virtual interfaces like
+                        # ZeroTier and WireGuard report "unknown" but are operational
+                        if state in ("up", "unknown"):
                             # Check if it has an IPv4 address
                             if get_interface_network(iface):
                                 interfaces.append(iface)
