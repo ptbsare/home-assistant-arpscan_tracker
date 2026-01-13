@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -38,6 +39,8 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up device tracker entities from a config entry."""
+    from homeassistant.helpers import entity_registry as er
+
     coordinator: DataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
     consider_home = entry.options.get(CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME)
     # Defensive check: ensure consider_home is an int (might be timedelta from corrupted config)
@@ -47,6 +50,39 @@ async def async_setup_entry(
 
     # Track which devices we've already created entities for
     tracked_macs: set[str] = set()
+
+    # Restore entities from entity registry (devices discovered in previous runs)
+    ent_reg = er.async_get(hass)
+    restored_entities: list[ArpScanDeviceTracker] = []
+
+    for entity in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if entity.unique_id and entity.unique_id.startswith(f"{DOMAIN}_"):
+            # Extract MAC from unique_id (format: arpscan_tracker_1c697a658c2b)
+            mac_clean = entity.unique_id.replace(f"{DOMAIN}_", "")
+            if len(mac_clean) == 12:  # Valid MAC without colons
+                # Convert back to MAC format with colons
+                mac_formatted = ":".join(
+                    mac_clean[i : i + 2] for i in range(0, 12, 2)
+                ).lower()
+                if mac_formatted not in tracked_macs:
+                    tracked_macs.add(mac_formatted)
+                    restored_entities.append(
+                        ArpScanDeviceTracker(
+                            coordinator=coordinator,
+                            mac=mac_formatted,
+                            consider_home=consider_home,
+                            interface=interface,
+                            entry_id=entry.entry_id,
+                        )
+                    )
+                    _LOGGER.debug(
+                        "Restoring device tracker for MAC %s from registry",
+                        mac_formatted,
+                    )
+
+    if restored_entities:
+        async_add_entities(restored_entities)
+        _LOGGER.info("Restored %d device tracker entities from registry", len(restored_entities))
 
     @callback
     def async_add_new_entities() -> None:
@@ -70,7 +106,7 @@ async def async_setup_entry(
         if new_entities:
             async_add_entities(new_entities)
 
-    # Add entities for initial data
+    # Add entities for initial data (devices currently online but not restored)
     async_add_new_entities()
 
     # Listen for coordinator updates to add new devices
@@ -79,7 +115,7 @@ async def async_setup_entry(
     )
 
 
-class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
+class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
     """Representation of a device tracked via ARP scan."""
 
     _attr_has_entity_name = True
@@ -134,6 +170,32 @@ class ArpScanDeviceTracker(CoordinatorEntity, ScannerEntity):
             manufacturer="ARP-Scan Tracker",
             model="Network Scanner",
         )
+
+    async def async_added_to_hass(self) -> None:
+        """Restore state when entity is added to hass."""
+        await super().async_added_to_hass()
+
+        # Restore previous state
+        if (last_state := await self.async_get_last_state()) is not None:
+            # Restore last_seen from attributes
+            if last_seen_str := last_state.attributes.get(ATTR_LAST_SEEN):
+                try:
+                    self._last_seen = dt_util.parse_datetime(last_seen_str)
+                    _LOGGER.debug(
+                        "Restored last_seen for %s: %s",
+                        self._mac,
+                        self._last_seen,
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+            # Restore IP and hostname if not currently in coordinator data
+            if self._mac not in self.coordinator.data:
+                if ip := last_state.attributes.get(ATTR_IP):
+                    self._ip_address = ip
+                # Restore hostname as entity name if it was set
+                if last_state.name and last_state.name != "unknown":
+                    self._attr_name = last_state.name
 
     @property
     def source_type(self) -> SourceType:
