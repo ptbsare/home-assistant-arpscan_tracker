@@ -6,7 +6,6 @@ DOMAIN: Final = "arpscan_tracker"
 
 # Configuration keys
 CONF_INTERFACE: Final = "interface"
-CONF_CUSTOM_INTERFACE: Final = "custom_interface"
 CONF_NETWORK: Final = "network"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_CONSIDER_HOME: Final = "consider_home"

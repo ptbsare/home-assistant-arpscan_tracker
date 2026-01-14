@@ -88,6 +88,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     include_list = entry.options.get(CONF_INCLUDE, [])
     exclude_list = entry.options.get(CONF_EXCLUDE, [])
 
+    if include_list:
+        _LOGGER.debug("Include filter active: %s", include_list)
+    if exclude_list:
+        _LOGGER.debug("Exclude filter active: %s", exclude_list)
+
     # Create scanner
     scanner = ArpScanner(
         interface=interface,

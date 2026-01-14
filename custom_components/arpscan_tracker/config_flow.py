@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import timedelta
 from typing import Any
 
@@ -17,7 +18,6 @@ from homeassistant.core import callback
 
 from .const import (
     CONF_CONSIDER_HOME,
-    CONF_CUSTOM_INTERFACE,
     CONF_EXCLUDE,
     CONF_INCLUDE,
     CONF_INTERFACE,
@@ -84,9 +84,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
         default_interface = await self.hass.async_add_executor_job(get_default_interface)
 
         if user_input is not None:
-            # Use custom interface if provided, otherwise use dropdown selection
-            custom_interface = user_input.get(CONF_CUSTOM_INTERFACE, "").strip()
-            interface = custom_interface if custom_interface else user_input[CONF_INTERFACE]
+            interface = user_input[CONF_INTERFACE]
             network = user_input.get(CONF_NETWORK)
 
             # If network is empty, auto-detect
@@ -140,10 +138,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_INTERFACE,
                 default=default_interface or (interface_options[0] if interface_options else "eth0")
             ): vol.In(interface_options),
-            vol.Optional(
-                CONF_CUSTOM_INTERFACE,
-                description={"suggested_value": ""}
-            ): str,
+
             vol.Optional(
                 CONF_NETWORK,
                 description={"suggested_value": default_network or ""}
@@ -250,15 +245,16 @@ class ArpScanOptionsFlow(OptionsFlow):
             include_str = user_input.get(CONF_INCLUDE, "")
             exclude_str = user_input.get(CONF_EXCLUDE, "")
 
+            # Parse IPs - accept both comma and space as separators
             include_list = [
                 ip.strip()
-                for ip in include_str.split(",")
+                for ip in re.split(r"[,\s]+", include_str)
                 if ip.strip()
             ] if include_str else []
 
             exclude_list = [
                 ip.strip()
-                for ip in exclude_str.split(",")
+                for ip in re.split(r"[,\s]+", exclude_str)
                 if ip.strip()
             ] if exclude_str else []
 
