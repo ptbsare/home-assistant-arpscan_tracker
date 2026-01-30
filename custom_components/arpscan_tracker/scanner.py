@@ -168,13 +168,24 @@ class ArpScanner:
         """Look up hostname via reverse DNS."""
         try:
             hostname, _, _ = socket.gethostbyaddr(ip)
+
+            # If hostname is the same as the IP, it's not a real hostname
+            if hostname == ip:
+                return None
+
             # Return hostname without domain if it's a FQDN
             if hostname and "." in hostname:
                 # Keep short hostname, but also keep if it looks like a real name
                 short_name = hostname.split(".")[0]
+
                 # If short name is just the IP with dashes, return full hostname
                 if short_name.replace("-", ".") == ip:
                     return hostname
+
+                # If short name is just a number (first octet of IP), it's not useful
+                if short_name.isdigit():
+                    return None
+
                 return short_name
             return hostname
         except (socket.herror, socket.gaierror, OSError):
@@ -243,7 +254,7 @@ class ArpScanner:
                 timeout=self._timeout,
                 iface=interface,
                 verbose=0,
-                retry=0,
+                retry=3,
             )
         except PermissionError as err:
             _LOGGER.error(

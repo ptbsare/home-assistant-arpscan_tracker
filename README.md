@@ -101,6 +101,11 @@ After initial setup, you can modify settings via:
 2. Find the ARP-Scan integration
 3. Click **Configure**
 
+> [!NOTE]
+> All device trackers are separate devices—they aren't linked to ARP-Scanner instance by design.
+> If you see devices linked to the ARP-Scanner in the UI, it's Home Assistant linking other known devices because of MAC address matches.
+> All found devices are disabled by default, so you need to enable them in the Home Assistant UI.
+
 ## Migration from YAML
 
 If you have an existing YAML configuration, it will be **automatically imported** on first startup after upgrading to version 2.0.0. You'll see a warning in the logs:

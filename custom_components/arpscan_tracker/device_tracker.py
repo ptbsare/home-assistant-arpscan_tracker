@@ -136,7 +136,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         self._consider_home = consider_home
         self._interface = interface
         self._entry_id = entry_id
-        self._last_seen: datetime | None = None
+        self._last_seen: datetime | None = dt_util.utcnow() - timedelta(days=365)
 
         # Get initial device data
         device_data = coordinator.data.get(self._mac, {})

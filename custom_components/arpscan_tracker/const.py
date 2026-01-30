@@ -17,7 +17,7 @@ CONF_RESOLVE_HOSTNAMES: Final = "resolve_hostnames"
 # Defaults
 DEFAULT_SCAN_INTERVAL: Final = 15  # seconds
 DEFAULT_CONSIDER_HOME: Final = 180  # seconds
-DEFAULT_TIMEOUT: Final = 1.0  # seconds
+DEFAULT_TIMEOUT: Final = 1.5  # seconds
 DEFAULT_INTERFACE: Final = None  # Auto-detect
 DEFAULT_NETWORK: Final = None  # Auto-detect from interface
 DEFAULT_RESOLVE_HOSTNAMES: Final = True
