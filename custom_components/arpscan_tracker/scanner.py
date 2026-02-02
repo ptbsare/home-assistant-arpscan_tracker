@@ -198,6 +198,42 @@ class ArpScanner:
             # No reverse DNS entry
             return None
 
+    def _get_interface_info(self, interface: str) -> tuple[str | None, str | None]:
+        """Get IP and MAC address for an interface.
+
+        Args:
+            interface: Network interface name
+
+        Returns:
+            Tuple of (ip_address, mac_address) or (None, None) if not available
+        """
+        try:
+            from scapy.all import get_if_addr, get_if_hwaddr  # type: ignore[attr-defined]
+
+            ip_addr = get_if_addr(interface)
+            mac_addr = get_if_hwaddr(interface)
+
+            # get_if_addr returns "0.0.0.0" if no IP is configured
+            if ip_addr == "0.0.0.0":
+                # Try to get from the interface network method
+                network_str = get_interface_network(interface)
+                if network_str:
+                    # Extract first usable IP from network
+                    from ipaddress import IPv4Network
+
+                    network = IPv4Network(network_str)
+                    # Use the interface's actual IP (first host in network)
+                    ip_addr = str(next(network.hosts(), None))
+
+            return (
+                ip_addr if ip_addr and ip_addr != "0.0.0.0" else None,
+                mac_addr,
+            )
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug("Failed to get interface info for %s: %s", interface, err)
+            return None, None
+
+
     @property
     def interface(self) -> str | None:
         """Get the interface (resolved if auto-detect was used)."""
@@ -328,10 +364,23 @@ class ArpScanner:
         if not self._hosts:
             return []
 
+        # Get interface IP and MAC for proper ARP packet construction
+        # This is critical for virtual interfaces like ZeroTier that use bridging
+        iface_ip, iface_mac = self._get_interface_info(interface)
+
+        if not iface_ip:
+            _LOGGER.warning(
+                "Could not determine IP address for interface %s, "
+                "ARP requests may not work on virtual/bridged networks",
+                interface,
+            )
+
         _LOGGER.debug(
-            "Probing %d specific hosts on interface %s: %s",
+            "Probing %d specific hosts on interface %s (IP: %s, MAC: %s): %s",
             len(self._hosts),
             interface,
+            iface_ip or "auto",
+            iface_mac or "auto",
             self._hosts,
         )
 
@@ -345,8 +394,21 @@ class ArpScanner:
         # We still use broadcast Ethernet, but target specific IPs
         for host_ip in self._hosts:
             try:
-                arp_request = ARP(pdst=host_ip)
-                broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
+                # Explicitly set source IP and MAC in ARP layer for ZeroTier compatibility
+                # ZeroTier's bridging needs these fields to properly route ARP requests
+                # across virtual networks to remote physical networks
+                arp_request = ARP(
+                    pdst=host_ip,
+                    psrc=iface_ip if iface_ip else None,  # Sender IP
+                    hwsrc=iface_mac if iface_mac else None,  # Sender MAC
+                )
+
+                # Ethernet layer - also set source MAC if available
+                if iface_mac:
+                    broadcast = Ether(dst="ff:ff:ff:ff:ff:ff", src=iface_mac)
+                else:
+                    broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
+
                 packet = broadcast / arp_request
 
                 # Use longer timeout and more retries for individual hosts
