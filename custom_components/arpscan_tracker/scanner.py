@@ -36,6 +36,7 @@ def get_default_interface() -> str | None:
 
     # Fallback: try common interface names
     import os
+
     for iface in ["eth0", "ens18", "enp0s3", "wlan0"]:
         if os.path.exists(f"/sys/class/net/{iface}"):
             return iface
@@ -60,7 +61,7 @@ def get_interface_network(interface: str) -> str | None:
         ip_bytes = fcntl.ioctl(
             sock.fileno(),
             0x8915,  # SIOCGIFADDR
-            struct.pack("256s", interface.encode()[:15])
+            struct.pack("256s", interface.encode()[:15]),
         )[20:24]
         ip_addr = socket.inet_ntoa(ip_bytes)
 
@@ -68,7 +69,7 @@ def get_interface_network(interface: str) -> str | None:
         netmask_bytes = fcntl.ioctl(
             sock.fileno(),
             0x891B,  # SIOCGIFNETMASK
-            struct.pack("256s", interface.encode()[:15])
+            struct.pack("256s", interface.encode()[:15]),
         )[20:24]
         netmask = socket.inet_ntoa(netmask_bytes)
 
@@ -92,6 +93,7 @@ def get_available_interfaces() -> list[str]:
     interfaces = []
     try:
         import os
+
         net_dir = "/sys/class/net"
         if os.path.isdir(net_dir):
             for iface in os.listdir(net_dir):
@@ -124,6 +126,7 @@ class ArpScanner:
         network: str | None = None,
         timeout: float = 1.0,
         resolve_hostnames: bool = True,
+        hosts: list[str] | None = None,
     ) -> None:
         """Initialize the ARP scanner.
 
@@ -132,16 +135,19 @@ class ArpScanner:
             network: Network range in CIDR notation (auto-detect if None)
             timeout: Timeout for ARP requests in seconds
             resolve_hostnames: Whether to resolve hostnames via reverse DNS
+            hosts: Specific IP addresses to probe (if provided, skips network scan)
         """
         self._interface = interface
         self._network = network
         self._timeout = timeout
         self._resolve_hostnames = resolve_hostnames
+        self._hosts = hosts
         self._oui_lookup: Callable[[str], str | None] | None = None
 
         # Initialize OUI lookup if available
         try:
             from ouilookup import OuiLookup
+
             self._oui_db = OuiLookup()
             self._oui_lookup = self._lookup_vendor
         except ImportError:
@@ -217,7 +223,11 @@ class ArpScanner:
         Returns:
             List of dicts with keys: ip, mac, vendor
         """
-        from scapy.all import ARP, Ether, conf, srp
+        # If specific hosts are configured, probe only those
+        if self._hosts:
+            return self._scan_hosts_sync()
+
+        from scapy.all import ARP, Ether, conf, srp  # type: ignore[attr-defined]
 
         interface = self.interface
         network = self.network
@@ -230,11 +240,7 @@ class ArpScanner:
             _LOGGER.error("No network range available for ARP scan")
             return []
 
-        _LOGGER.debug(
-            "Starting ARP scan on interface %s, network %s",
-            interface,
-            network
-        )
+        _LOGGER.debug("Starting ARP scan on interface %s, network %s", interface, network)
 
         # Suppress scapy warnings
         conf.verb = 0
@@ -260,7 +266,7 @@ class ArpScanner:
             _LOGGER.error(
                 "Permission denied for ARP scan. "
                 "Ensure Home Assistant has CAP_NET_RAW capability: %s",
-                err
+                err,
             )
             return []
         except Exception as err:  # pylint: disable=broad-except
@@ -290,14 +296,109 @@ class ArpScanner:
             if self._resolve_hostnames:
                 hostname = self._lookup_hostname(ip)
 
-            devices.append({
-                "ip": ip,
-                "mac": mac,
-                "vendor": vendor or "Unknown",
-                "hostname": hostname,
-            })
+            devices.append(
+                {
+                    "ip": ip,
+                    "mac": mac,
+                    "vendor": vendor or "Unknown",
+                    "hostname": hostname,
+                }
+            )
 
         _LOGGER.debug("ARP scan found %d devices", len(devices))
+        return devices
+
+    def _scan_hosts_sync(self) -> list[dict[str, str | None]]:
+        """Probe specific hosts with ARP requests.
+
+        This is more reliable for VPN/virtual interfaces like ZeroTier
+        where broadcast ARP may not work correctly.
+
+        Returns:
+            List of dicts with keys: ip, mac, vendor, hostname
+        """
+        from scapy.all import ARP, Ether, conf, srp  # type: ignore[attr-defined]
+
+        interface = self.interface
+
+        if not interface:
+            _LOGGER.error("No network interface available for ARP scan")
+            return []
+
+        if not self._hosts:
+            return []
+
+        _LOGGER.debug(
+            "Probing %d specific hosts on interface %s: %s",
+            len(self._hosts),
+            interface,
+            self._hosts,
+        )
+
+        # Suppress scapy warnings
+        conf.verb = 0
+
+        devices: list[dict[str, str | None]] = []
+        seen_macs: set[str] = set()
+
+        # Send ARP requests to each specific host
+        # We still use broadcast Ethernet, but target specific IPs
+        for host_ip in self._hosts:
+            try:
+                arp_request = ARP(pdst=host_ip)
+                broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
+                packet = broadcast / arp_request
+
+                # Use longer timeout and more retries for individual hosts
+                answered, _ = srp(
+                    packet,
+                    timeout=self._timeout * 2,  # Double timeout for reliability
+                    iface=interface,
+                    verbose=0,
+                    retry=5,  # More retries for VPN networks
+                )
+
+                for _sent, received in answered:
+                    mac = received.hwsrc.lower()
+                    ip = received.psrc
+
+                    # Skip duplicates
+                    if mac in seen_macs:
+                        continue
+                    seen_macs.add(mac)
+
+                    # Look up vendor
+                    vendor = None
+                    if self._oui_lookup:
+                        vendor = self._oui_lookup(mac)
+
+                    # Look up hostname via reverse DNS (if enabled)
+                    hostname = None
+                    if self._resolve_hostnames:
+                        hostname = self._lookup_hostname(ip)
+
+                    devices.append(
+                        {
+                            "ip": ip,
+                            "mac": mac,
+                            "vendor": vendor or "Unknown",
+                            "hostname": hostname,
+                        }
+                    )
+                    _LOGGER.debug("Found device at %s: %s", ip, mac)
+
+            except PermissionError as err:
+                _LOGGER.error(
+                    "Permission denied for ARP scan. "
+                    "Ensure Home Assistant has CAP_NET_RAW capability: %s",
+                    err,
+                )
+                return []
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.debug("ARP probe to %s failed: %s", host_ip, err)
+                continue
+
+        _LOGGER.debug("Host probe found %d devices", len(devices))
         return devices
 
     async def async_scan(self) -> list[dict[str, str | None]]:

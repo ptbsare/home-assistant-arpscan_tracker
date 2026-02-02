@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     CONF_EXCLUDE,
+    CONF_HOSTS,
     CONF_INCLUDE,
     CONF_INTERFACE,
     CONF_NETWORK,
@@ -35,15 +36,17 @@ from .scanner import ArpScanner
 _LOGGER = logging.getLogger(__name__)
 
 # Legacy YAML schema for import
-PLATFORM_SCHEMA = vol.Schema({
-    vol.Optional("platform"): cv.string,
-    vol.Optional("interval_seconds", default=DEFAULT_SCAN_INTERVAL): cv.positive_int,
-    vol.Optional("consider_home", default=DEFAULT_CONSIDER_HOME): cv.positive_int,
-    vol.Optional("track_new_devices", default=True): cv.boolean,
-    vol.Optional("include", default=[]): vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional("exclude", default=[]): vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional("scan_options", default=""): cv.string,
-})
+PLATFORM_SCHEMA = vol.Schema(
+    {
+        vol.Optional("platform"): cv.string,
+        vol.Optional("interval_seconds", default=DEFAULT_SCAN_INTERVAL): cv.positive_int,
+        vol.Optional("consider_home", default=DEFAULT_CONSIDER_HOME): cv.positive_int,
+        vol.Optional("track_new_devices", default=True): cv.boolean,
+        vol.Optional("include", default=[]): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("exclude", default=[]): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional("scan_options", default=""): cv.string,
+    }
+)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -85,9 +88,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         scan_interval = int(scan_interval.total_seconds())
     timeout = entry.options.get(CONF_TIMEOUT, DEFAULT_TIMEOUT)
     resolve_hostnames = entry.options.get(CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES)
+    hosts_list = entry.options.get(CONF_HOSTS, [])
     include_list = entry.options.get(CONF_INCLUDE, [])
     exclude_list = entry.options.get(CONF_EXCLUDE, [])
 
+    if hosts_list:
+        _LOGGER.debug("Specific hosts mode: %s", hosts_list)
     if include_list:
         _LOGGER.debug("Include filter active: %s", include_list)
     if exclude_list:
@@ -99,6 +105,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         network=network,
         timeout=timeout,
         resolve_hostnames=resolve_hostnames,
+        hosts=hosts_list if hosts_list else None,
     )
 
     async def async_update_data() -> dict[str, dict[str, Any]]:
@@ -171,9 +178,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return unload_ok
 
 
-async def async_options_update_listener(
-    hass: HomeAssistant, entry: ConfigEntry
-) -> None:
+async def async_options_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
     # Reload the integration when options change
     await hass.config_entries.async_reload(entry.entry_id)

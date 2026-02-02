@@ -81,6 +81,7 @@ Alternatively:
 | **Consider Home** | 180 seconds | Time before marking device as not_home (10-1800) |
 | **ARP Timeout** | 1.0 seconds | Timeout for each ARP request (0.5-10) |
 | **Resolve Hostnames** | Enabled | Look up device hostnames via reverse DNS |
+| **Specific Hosts** | Empty | Probe only these IPs (for ZeroTier/VPN networks) |
 | **Include IPs** | Empty | Only track these IP addresses (comma-separated) |
 | **Exclude IPs** | Empty | Skip tracking these IP addresses (comma-separated) |
 
@@ -160,6 +161,21 @@ docker run -d --name homeassistant \
 If you see "Permission denied for ARP scan" in the logs:
 - **Docker**: Add `--cap-add=NET_RAW` to your container
 - **Core**: Run with `sudo` or add `CAP_NET_RAW` capability
+
+**ZeroTier / VPN networks not detecting devices**
+
+ZeroTier and similar VPN solutions intercept ARP broadcasts, so the normal network scan won't find devices. Use the **Specific Hosts** option to probe individual IPs:
+
+1. Go to **Settings → Devices & Services → ARP-Scan → Configure**
+2. In **Specific Hosts (IPs)**, enter the IP addresses you want to track: `192.168.0.20, 192.168.4.20`
+3. Click Submit
+
+The scanner will send individual ARP requests directly to those IPs instead of broadcasting to the subnet.
+
+> [!NOTE]
+> **Specific Hosts** vs **Include IPs**: 
+> - **Specific Hosts** changes *how* the scanner works (probes only listed IPs)
+> - **Include IPs** is a *filter* on the results (still scans everything, but only tracks listed IPs)
 
 ### Enable Debug Logging
 

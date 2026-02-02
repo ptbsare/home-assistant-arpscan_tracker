@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.0.8
+
+- Added ZeroTier/VPN Hosts option to probe specific IPs instead of network scanning
+- Fixed entity unavailable state on restart when device is offline
+- Updated README with ZeroTier/VPN troubleshooting documentation
+
 ### 2.0.7
 
 - Introduced a retry of 3 for ARP requests (was 0)

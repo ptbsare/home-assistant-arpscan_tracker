@@ -19,6 +19,7 @@ from homeassistant.core import callback
 from .const import (
     CONF_CONSIDER_HOME,
     CONF_EXCLUDE,
+    CONF_HOSTS,
     CONF_INCLUDE,
     CONF_INTERFACE,
     CONF_NETWORK,
@@ -57,9 +58,11 @@ def _get_interface_schema(interfaces: list[str], default: str | None) -> vol.Sch
     if default and default not in interfaces:
         interfaces.insert(0, default)
 
-    return vol.Schema({
-        vol.Required(CONF_INTERFACE, default=default or interfaces[0]): vol.In(interfaces),
-    })
+    return vol.Schema(
+        {
+            vol.Required(CONF_INTERFACE, default=default or interfaces[0]): vol.In(interfaces),
+        }
+    )
 
 
 class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -73,9 +76,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
         self._interfaces: list[str] = []
         self._selected_interface: str | None = None
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
@@ -89,9 +90,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
 
             # If network is empty, auto-detect
             if not network:
-                network = await self.hass.async_add_executor_job(
-                    get_interface_network, interface
-                )
+                network = await self.hass.async_add_executor_job(get_interface_network, interface)
                 if not network:
                     errors["base"] = "cannot_detect_network"
 
@@ -133,33 +132,28 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
         if default_interface and default_interface not in interface_options:
             interface_options.insert(0, default_interface)
 
-        data_schema = vol.Schema({
-            vol.Required(
-                CONF_INTERFACE,
-                default=default_interface or (interface_options[0] if interface_options else "eth0")
-            ): vol.In(interface_options),
-
-            vol.Optional(
-                CONF_NETWORK,
-                description={"suggested_value": default_network or ""}
-            ): str,
-            vol.Optional(
-                CONF_SCAN_INTERVAL,
-                default=DEFAULT_SCAN_INTERVAL
-            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=300)),
-            vol.Optional(
-                CONF_CONSIDER_HOME,
-                default=DEFAULT_CONSIDER_HOME
-            ): vol.All(vol.Coerce(int), vol.Range(min=10, max=1800)),
-            vol.Optional(
-                CONF_TIMEOUT,
-                default=DEFAULT_TIMEOUT
-            ): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=10.0)),
-            vol.Optional(
-                CONF_RESOLVE_HOSTNAMES,
-                default=DEFAULT_RESOLVE_HOSTNAMES
-            ): bool,
-        })
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_INTERFACE,
+                    default=default_interface
+                    or (interface_options[0] if interface_options else "eth0"),
+                ): vol.In(interface_options),
+                vol.Optional(
+                    CONF_NETWORK, description={"suggested_value": default_network or ""}
+                ): str,
+                vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): vol.All(
+                    vol.Coerce(int), vol.Range(min=5, max=300)
+                ),
+                vol.Optional(CONF_CONSIDER_HOME, default=DEFAULT_CONSIDER_HOME): vol.All(
+                    vol.Coerce(int), vol.Range(min=10, max=1800)
+                ),
+                vol.Optional(CONF_TIMEOUT, default=DEFAULT_TIMEOUT): vol.All(
+                    vol.Coerce(float), vol.Range(min=0.5, max=10.0)
+                ),
+                vol.Optional(CONF_RESOLVE_HOSTNAMES, default=DEFAULT_RESOLVE_HOSTNAMES): bool,
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
@@ -167,9 +161,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    async def async_step_import(
-        self, import_config: dict[str, Any]
-    ) -> ConfigFlowResult:
+    async def async_step_import(self, import_config: dict[str, Any]) -> ConfigFlowResult:
         """Handle import from YAML configuration."""
         _LOGGER.info("Importing ARP-Scan configuration from YAML")
 
@@ -191,14 +183,10 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
             interface = await self.hass.async_add_executor_job(get_default_interface)
 
         if not network and interface:
-            network = await self.hass.async_add_executor_job(
-                get_interface_network, interface
-            )
+            network = await self.hass.async_add_executor_job(get_interface_network, interface)
 
         if not interface or not network:
-            _LOGGER.error(
-                "Cannot import YAML config: unable to determine interface or network"
-            )
+            _LOGGER.error("Cannot import YAML config: unable to determine interface or network")
             return self.async_abort(reason="cannot_detect_network")
 
         # Check for duplicates
@@ -236,9 +224,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
 class ArpScanOptionsFlow(OptionsFlow):
     """Handle options flow for ARP-Scan Device Tracker."""
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
             # Parse include/exclude as comma-separated lists
@@ -246,17 +232,25 @@ class ArpScanOptionsFlow(OptionsFlow):
             exclude_str = user_input.get(CONF_EXCLUDE, "")
 
             # Parse IPs - accept both comma and space as separators
-            include_list = [
-                ip.strip()
-                for ip in re.split(r"[,\s]+", include_str)
-                if ip.strip()
-            ] if include_str else []
+            include_list = (
+                [ip.strip() for ip in re.split(r"[,\s]+", include_str) if ip.strip()]
+                if include_str
+                else []
+            )
 
-            exclude_list = [
-                ip.strip()
-                for ip in re.split(r"[,\s]+", exclude_str)
-                if ip.strip()
-            ] if exclude_str else []
+            exclude_list = (
+                [ip.strip() for ip in re.split(r"[,\s]+", exclude_str) if ip.strip()]
+                if exclude_str
+                else []
+            )
+
+            # Parse hosts list
+            hosts_str = user_input.get(CONF_HOSTS, "")
+            hosts_list = (
+                [ip.strip() for ip in re.split(r"[,\s]+", hosts_str) if ip.strip()]
+                if hosts_str
+                else []
+            )
 
             return self.async_create_entry(
                 title="",
@@ -269,45 +263,53 @@ class ArpScanOptionsFlow(OptionsFlow):
                     ),
                     CONF_INCLUDE: include_list,
                     CONF_EXCLUDE: exclude_list,
+                    CONF_HOSTS: hosts_list,
                 },
             )
 
         # Current values
+        current_hosts = self.config_entry.options.get(CONF_HOSTS, [])
         current_include = self.config_entry.options.get(CONF_INCLUDE, [])
         current_exclude = self.config_entry.options.get(CONF_EXCLUDE, [])
 
-        data_schema = vol.Schema({
-            vol.Required(
-                CONF_SCAN_INTERVAL,
-                default=self.config_entry.options.get(
-                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=5, max=300)),
-            vol.Required(
-                CONF_CONSIDER_HOME,
-                default=self.config_entry.options.get(
-                    CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME
-                ),
-            ): vol.All(vol.Coerce(int), vol.Range(min=10, max=1800)),
-            vol.Required(
-                CONF_TIMEOUT,
-                default=self.config_entry.options.get(CONF_TIMEOUT, DEFAULT_TIMEOUT),
-            ): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=10.0)),
-            vol.Required(
-                CONF_RESOLVE_HOSTNAMES,
-                default=self.config_entry.options.get(
-                    CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES
-                ),
-            ): bool,
-            vol.Optional(
-                CONF_INCLUDE,
-                default=", ".join(current_include) if current_include else "",
-            ): str,
-            vol.Optional(
-                CONF_EXCLUDE,
-                default=", ".join(current_exclude) if current_exclude else "",
-            ): str,
-        })
+        data_schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_SCAN_INTERVAL,
+                    default=self.config_entry.options.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=5, max=300)),
+                vol.Required(
+                    CONF_CONSIDER_HOME,
+                    default=self.config_entry.options.get(
+                        CONF_CONSIDER_HOME, DEFAULT_CONSIDER_HOME
+                    ),
+                ): vol.All(vol.Coerce(int), vol.Range(min=10, max=1800)),
+                vol.Required(
+                    CONF_TIMEOUT,
+                    default=self.config_entry.options.get(CONF_TIMEOUT, DEFAULT_TIMEOUT),
+                ): vol.All(vol.Coerce(float), vol.Range(min=0.5, max=10.0)),
+                vol.Required(
+                    CONF_RESOLVE_HOSTNAMES,
+                    default=self.config_entry.options.get(
+                        CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES
+                    ),
+                ): bool,
+                vol.Optional(
+                    CONF_HOSTS,
+                    default=", ".join(current_hosts) if current_hosts else "",
+                ): str,
+                vol.Optional(
+                    CONF_INCLUDE,
+                    default=", ".join(current_include) if current_include else "",
+                ): str,
+                vol.Optional(
+                    CONF_EXCLUDE,
+                    default=", ".join(current_exclude) if current_exclude else "",
+                ): str,
+            }
+        )
 
         return self.async_show_form(
             step_id="init",

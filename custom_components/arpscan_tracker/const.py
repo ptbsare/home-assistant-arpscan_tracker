@@ -13,6 +13,7 @@ CONF_INCLUDE: Final = "include"
 CONF_EXCLUDE: Final = "exclude"
 CONF_TIMEOUT: Final = "timeout"
 CONF_RESOLVE_HOSTNAMES: Final = "resolve_hostnames"
+CONF_HOSTS: Final = "hosts"
 
 # Defaults
 DEFAULT_SCAN_INTERVAL: Final = 15  # seconds

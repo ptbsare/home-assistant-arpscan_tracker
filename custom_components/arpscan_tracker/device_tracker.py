@@ -61,9 +61,7 @@ async def async_setup_entry(
             mac_clean = entity.unique_id.replace(f"{DOMAIN}_", "")
             if len(mac_clean) == 12:  # Valid MAC without colons
                 # Convert back to MAC format with colons
-                mac_formatted = ":".join(
-                    mac_clean[i : i + 2] for i in range(0, 12, 2)
-                ).lower()
+                mac_formatted = ":".join(mac_clean[i : i + 2] for i in range(0, 12, 2)).lower()
                 if mac_formatted not in tracked_macs:
                     tracked_macs.add(mac_formatted)
                     restored_entities.append(
@@ -110,9 +108,7 @@ async def async_setup_entry(
     async_add_new_entities()
 
     # Listen for coordinator updates to add new devices
-    entry.async_on_unload(
-        coordinator.async_add_listener(async_add_new_entities)
-    )
+    entry.async_on_unload(coordinator.async_add_listener(async_add_new_entities))
 
 
 class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
@@ -173,9 +169,9 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
 
     async def async_added_to_hass(self) -> None:
         """Restore state when entity is added to hass."""
-        await super().async_added_to_hass()
-
-        # Restore previous state
+        # IMPORTANT: Restore previous state BEFORE calling super() which registers
+        # the coordinator listener. This ensures _last_seen is set before any
+        # coordinator updates are processed.
         if (last_state := await self.async_get_last_state()) is not None:
             # Restore last_seen from attributes
             if last_seen_str := last_state.attributes.get(ATTR_LAST_SEEN):
@@ -196,6 +192,9 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
                 # Restore hostname as entity name if it was set
                 if last_state.name and last_state.name != "unknown":
                     self._attr_name = last_state.name
+
+        # Now register with coordinator after state is restored
+        await super().async_added_to_hass()
 
     @property
     def available(self) -> bool:
@@ -260,7 +259,6 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
             attrs[ATTR_LAST_SEEN] = self._last_seen.isoformat()
 
         return attrs
-
 
     @callback
     def _handle_coordinator_update(self) -> None:

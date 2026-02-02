@@ -41,6 +41,7 @@
                     "consider_home": "Consider Home (seconds)",
                     "timeout": "ARP Timeout (seconds)",
                     "resolve_hostnames": "Resolve Hostnames (DNS)",
+                    "hosts": "ZeroTier/VPN Hosts (IPs)",
                     "include": "Include IPs (comma-separated)",
                     "exclude": "Exclude IPs (comma-separated)"
                 },
@@ -49,6 +50,7 @@
                     "consider_home": "How long to wait before marking a device as not home (10-1800 seconds)",
                     "timeout": "Timeout for each ARP request (0.5-10 seconds)",
                     "resolve_hostnames": "Look up device hostnames via reverse DNS lookup (may slow down scans)",
+                    "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.)",
                     "include": "Only track devices with these IP addresses (comma-separated list)",
                     "exclude": "Skip tracking devices with these IP addresses (comma-separated list)"
                 }
