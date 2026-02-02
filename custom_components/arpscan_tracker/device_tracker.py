@@ -115,6 +115,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
     """Representation of a device tracked via ARP scan."""
 
     _attr_has_entity_name = True
+    _attr_available = True  # Device trackers are always available, even when offline
     _attr_device_info: DeviceInfo  # type: ignore[assignment]
 
     def __init__(
