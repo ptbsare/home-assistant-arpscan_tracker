@@ -10,7 +10,10 @@
                     "scan_interval": "Scan Interval (seconds)",
                     "consider_home": "Consider Home (seconds)",
                     "timeout": "ARP Timeout (seconds)",
-                    "resolve_hostnames": "Resolve Hostnames (DNS)"
+                    "resolve_hostnames": "Resolve Hostnames (DNS)",
+                    "include": "Include IPs",
+                    "exclude": "Exclude IPs",
+                    "hosts": "ZeroTier/VPN Hosts (IPs)"
                 },
                 "data_description": {
                     "interface": "Select a network interface from the list",
@@ -18,7 +21,10 @@
                     "scan_interval": "How often to scan for devices (5-300 seconds)",
                     "consider_home": "How long to wait before marking a device as not home (10-1800 seconds)",
                     "timeout": "Timeout for each ARP request (0.5-10 seconds)",
-                    "resolve_hostnames": "Look up device hostnames via reverse DNS lookup"
+                    "resolve_hostnames": "Look up device hostnames via reverse DNS lookup",
+                    "include": "Only track devices with these IP addresses (comma-separated list)",
+                    "exclude": "Skip tracking devices with these IP addresses (comma-separated list)",
+                    "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.)"
                 }
             }
         },
@@ -37,13 +43,13 @@
                 "title": "ARP-Scan Options",
                 "description": "Configure device tracking options.",
                 "data": {
-                    "scan_interval": "Scan Interval (seconds)",
-                    "consider_home": "Consider Home (seconds)",
-                    "timeout": "ARP Timeout (seconds)",
+                    "scan_interval": "Scan Interval",
+                    "consider_home": "Consider Home",
+                    "timeout": "ARP Timeout",
                     "resolve_hostnames": "Resolve Hostnames (DNS)",
                     "hosts": "ZeroTier/VPN Hosts (IPs)",
-                    "include": "Include IPs (comma-separated)",
-                    "exclude": "Exclude IPs (comma-separated)"
+                    "include": "Include IPs",
+                    "exclude": "Exclude IPs"
                 },
                 "data_description": {
                     "scan_interval": "How often to scan for devices (5-300 seconds)",

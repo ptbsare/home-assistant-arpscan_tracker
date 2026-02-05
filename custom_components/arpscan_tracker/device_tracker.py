@@ -86,8 +86,11 @@ async def async_setup_entry(
     def async_add_new_entities() -> None:
         """Add entities for newly discovered devices."""
         new_entities: list[ArpScanDeviceTracker] = []
+        
+        _LOGGER.debug("Checking for new entities: coordinator has %d devices, %d already tracked",
+                      len(coordinator.data), len(tracked_macs))
 
-        for mac, _device_data in coordinator.data.items():
+        for mac, device_data in coordinator.data.items():
             if mac not in tracked_macs:
                 tracked_macs.add(mac)
                 new_entities.append(
@@ -99,10 +102,14 @@ async def async_setup_entry(
                         entry_id=entry.entry_id,
                     )
                 )
-                _LOGGER.debug("Adding new device tracker for MAC %s", mac)
+                _LOGGER.info("Creating NEW device tracker entity for MAC %s (IP: %s, hostname: %s)",
+                            mac, device_data.get("ip"), device_data.get("hostname"))
 
         if new_entities:
+            _LOGGER.info("Adding %d new device tracker entities", len(new_entities))
             async_add_entities(new_entities)
+        else:
+            _LOGGER.debug("No new entities to add this update")
 
     # Add entities for initial data (devices currently online but not restored)
     async_add_new_entities()

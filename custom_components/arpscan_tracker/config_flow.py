@@ -95,6 +95,30 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                     errors["base"] = "cannot_detect_network"
 
             if not errors:
+                # Parse include/exclude/hosts as comma-separated lists
+                include_str = user_input.get(CONF_INCLUDE, "")
+                exclude_str = user_input.get(CONF_EXCLUDE, "")
+                hosts_str = user_input.get(CONF_HOSTS, "")
+
+                # Parse IPs - accept both comma and space as separators
+                include_list = (
+                    [ip.strip() for ip in re.split(r"[,\s]+", include_str) if ip.strip()]
+                    if include_str
+                    else []
+                )
+
+                exclude_list = (
+                    [ip.strip() for ip in re.split(r"[,\s]+", exclude_str) if ip.strip()]
+                    if exclude_str
+                    else []
+                )
+
+                hosts_list = (
+                    [ip.strip() for ip in re.split(r"[,\s]+", hosts_str) if ip.strip()]
+                    if hosts_str
+                    else []
+                )
+
                 # Check if already configured with same interface
                 await self.async_set_unique_id(f"{DOMAIN}_{interface}")
                 self._abort_if_unique_id_configured()
@@ -116,8 +140,9 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_RESOLVE_HOSTNAMES: user_input.get(
                             CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES
                         ),
-                        CONF_INCLUDE: user_input.get(CONF_INCLUDE, []),
-                        CONF_EXCLUDE: user_input.get(CONF_EXCLUDE, []),
+                        CONF_INCLUDE: include_list,
+                        CONF_EXCLUDE: exclude_list,
+                        CONF_HOSTS: hosts_list,
                     },
                 )
 
@@ -152,6 +177,9 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Coerce(float), vol.Range(min=0.5, max=10.0)
                 ),
                 vol.Optional(CONF_RESOLVE_HOSTNAMES, default=DEFAULT_RESOLVE_HOSTNAMES): bool,
+                vol.Optional(CONF_INCLUDE, default=""): str,
+                vol.Optional(CONF_EXCLUDE, default=""): str,
+                vol.Optional(CONF_HOSTS, default=""): str,
             }
         )
 
@@ -211,6 +239,7 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_TIMEOUT: DEFAULT_TIMEOUT,
                 CONF_INCLUDE: import_config.get(CONF_INCLUDE, []),
                 CONF_EXCLUDE: import_config.get(CONF_EXCLUDE, []),
+                CONF_HOSTS: import_config.get(CONF_HOSTS, []),
             },
         )
 
@@ -297,16 +326,16 @@ class ArpScanOptionsFlow(OptionsFlow):
                     ),
                 ): bool,
                 vol.Optional(
-                    CONF_HOSTS,
-                    default=", ".join(current_hosts) if current_hosts else "",
-                ): str,
-                vol.Optional(
                     CONF_INCLUDE,
                     default=", ".join(current_include) if current_include else "",
                 ): str,
                 vol.Optional(
                     CONF_EXCLUDE,
                     default=", ".join(current_exclude) if current_exclude else "",
+                ): str,
+                vol.Optional(
+                    CONF_HOSTS,
+                    default=", ".join(current_hosts) if current_hosts else "",
                 ): str,
             }
         )
