@@ -10,7 +10,6 @@ import homeassistant.util.dt as dt_util
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import (
@@ -55,38 +54,54 @@ async def async_setup_entry(
     ent_reg = er.async_get(hass)
     restored_entities: list[ArpScanDeviceTracker] = []
 
-    for entity in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
-        if entity.unique_id and entity.unique_id.startswith(f"{DOMAIN}_"):
-            # Extract MAC from unique_id (format: arpscan_tracker_1c697a658c2b)
-            mac_clean = entity.unique_id.replace(f"{DOMAIN}_", "")
-            if len(mac_clean) == 12:  # Valid MAC without colons
-                # Convert back to MAC format with colons
-                mac_formatted = ":".join(mac_clean[i : i + 2] for i in range(0, 12, 2)).lower()
-                if mac_formatted not in tracked_macs:
-                    tracked_macs.add(mac_formatted)
-                    restored_entities.append(
-                        ArpScanDeviceTracker(
-                            coordinator=coordinator,
-                            mac=mac_formatted,
-                            consider_home=consider_home,
-                            interface=interface,
-                            entry_id=entry.entry_id,
-                        )
-                    )
-                    _LOGGER.debug(
-                        "Restoring device tracker for MAC %s from registry",
-                        mac_formatted,
-                    )
+    registry_entries = er.async_entries_for_config_entry(ent_reg, entry.entry_id)
+    _LOGGER.debug(
+        "Entity registry has %d entries for config entry %s",
+        len(registry_entries),
+        entry.entry_id,
+    )
+    for entity in registry_entries:
+        # ScannerEntity.unique_id always returns mac_address, so registry
+        # entries will have MAC-format unique_ids (e.g. 88:a2:9e:27:00:21)
+        if entity.unique_id and ":" in entity.unique_id and len(entity.unique_id) == 17:
+            mac_formatted = entity.unique_id.lower()
+        else:
+            _LOGGER.debug(
+                "Skipping registry entry with unrecognized unique_id format: %s (entity_id=%s)",
+                entity.unique_id,
+                entity.entity_id,
+            )
+            continue
+
+        if mac_formatted not in tracked_macs:
+            tracked_macs.add(mac_formatted)
+            restored_entities.append(
+                ArpScanDeviceTracker(
+                    coordinator=coordinator,
+                    mac=mac_formatted,
+                    consider_home=consider_home,
+                    interface=interface,
+                    entry_id=entry.entry_id,
+                    restored_name=entity.original_name or entity.name,
+                )
+            )
+            _LOGGER.info(
+                "Restoring device tracker for MAC %s from registry (currently %s)",
+                mac_formatted,
+                "online" if mac_formatted in coordinator.data else "offline",
+            )
 
     if restored_entities:
         async_add_entities(restored_entities)
         _LOGGER.info("Restored %d device tracker entities from registry", len(restored_entities))
+    else:
+        _LOGGER.debug("No device tracker entities to restore from registry")
 
     @callback
     def async_add_new_entities() -> None:
         """Add entities for newly discovered devices."""
         new_entities: list[ArpScanDeviceTracker] = []
-        
+
         _LOGGER.debug("Checking for new entities: coordinator has %d devices, %d already tracked",
                       len(coordinator.data), len(tracked_macs))
 
@@ -121,9 +136,6 @@ async def async_setup_entry(
 class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
     """Representation of a device tracked via ARP scan."""
 
-    _attr_has_entity_name = True
-    _attr_available = True  # Device trackers are always available, even when offline
-    _attr_device_info: DeviceInfo  # type: ignore[assignment]
 
     def __init__(
         self,
@@ -132,6 +144,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         consider_home: int,
         interface: str,
         entry_id: str,
+        restored_name: str | None = None,
     ) -> None:
         """Initialize the device tracker."""
         super().__init__(coordinator)
@@ -147,17 +160,18 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         ip_address = device_data.get("ip", "unknown")
         hostname = device_data.get("hostname")
 
-        # Format MAC for entity_id (remove colons)
-        mac_clean = self._mac.replace(":", "")
-
-        # Entity ID uses MAC address (e.g., device_tracker.arpscan_tracker_1c697a658c2)
-        self._attr_unique_id = f"{DOMAIN}_{mac_clean}"
-
-        # Display name: hostname if known, otherwise IP address
+        # Display name: hostname if known, then vendor, then restored name, then IP, then MAC
+        vendor = device_data.get("vendor")
         if hostname:
             self._attr_name = hostname
-        else:
+        elif vendor and vendor != "Unknown":
+            self._attr_name = vendor
+        elif restored_name:
+            self._attr_name = restored_name
+        elif ip_address and ip_address != "unknown":
             self._attr_name = ip_address
+        else:
+            self._attr_name = self._mac
 
         # Store for later reference
         self._ip_address = ip_address
@@ -166,14 +180,6 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         # Update last seen on init if device is in data
         if self._mac in coordinator.data:
             self._last_seen = dt_util.utcnow()
-
-        # Device info - all entities share one scanner device
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, self._interface)},
-            name=f"ARP Scanner ({self._interface})",
-            manufacturer="ARP-Scan Tracker",
-            model="Network Scanner",
-        )
 
     async def async_added_to_hass(self) -> None:
         """Restore state when entity is added to hass."""
@@ -219,7 +225,6 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         """Return True if the device is currently connected."""
         # Check if device is in latest scan results
         if self._mac in self.coordinator.data:
-            self._last_seen = dt_util.utcnow()
             return True
 
         # Check if device was seen within consider_home window
