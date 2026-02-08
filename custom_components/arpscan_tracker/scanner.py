@@ -193,6 +193,11 @@ class ArpScanner:
                     return None
 
                 return short_name
+
+            # Reject hostnames that are just numbers (partial IPs like "192")
+            if hostname.isdigit():
+                return None
+
             return hostname
         except (socket.herror, socket.gaierror, OSError):
             # No reverse DNS entry

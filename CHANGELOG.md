@@ -1,6 +1,6 @@
 ## Changelog
 
-### 2.0.9
+### 2.1.3
 
 - Added **Enable Found Devices** option to enable/disable all device tracker entities
 - Added **Track New Devices** option to control auto-creation of entities for newly discovered devices
