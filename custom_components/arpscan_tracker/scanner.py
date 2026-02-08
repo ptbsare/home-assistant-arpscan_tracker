@@ -208,7 +208,7 @@ class ArpScanner:
             Tuple of (ip_address, mac_address) or (None, None) if not available
         """
         try:
-            from scapy.all import get_if_addr, get_if_hwaddr  # type: ignore[attr-defined]
+            from scapy.all import get_if_addr, get_if_hwaddr
 
             ip_addr = get_if_addr(interface)
             mac_addr = get_if_hwaddr(interface)
@@ -223,7 +223,8 @@ class ArpScanner:
 
                     network = IPv4Network(network_str)
                     # Use the interface's actual IP (first host in network)
-                    ip_addr = str(next(network.hosts(), None))
+                    first_host = next(iter(network.hosts()), None)
+                    ip_addr = str(first_host) if first_host else "0.0.0.0"
 
             return (
                 ip_addr if ip_addr and ip_addr != "0.0.0.0" else None,

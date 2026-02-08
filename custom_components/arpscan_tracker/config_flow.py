@@ -18,6 +18,7 @@ from homeassistant.core import callback
 
 from .const import (
     CONF_CONSIDER_HOME,
+    CONF_DEVICES_ENABLED,
     CONF_EXCLUDE,
     CONF_HOSTS,
     CONF_INCLUDE,
@@ -26,10 +27,13 @@ from .const import (
     CONF_RESOLVE_HOSTNAMES,
     CONF_SCAN_INTERVAL,
     CONF_TIMEOUT,
+    CONF_TRACK_NEW_DEVICES,
     DEFAULT_CONSIDER_HOME,
+    DEFAULT_DEVICES_ENABLED,
     DEFAULT_RESOLVE_HOSTNAMES,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_TIMEOUT,
+    DEFAULT_TRACK_NEW_DEVICES,
     DOMAIN,
 )
 from .scanner import get_available_interfaces, get_default_interface, get_interface_network
@@ -140,6 +144,12 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_RESOLVE_HOSTNAMES: user_input.get(
                             CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES
                         ),
+                        CONF_DEVICES_ENABLED: user_input.get(
+                            CONF_DEVICES_ENABLED, DEFAULT_DEVICES_ENABLED
+                        ),
+                        CONF_TRACK_NEW_DEVICES: user_input.get(
+                            CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES
+                        ),
                         CONF_INCLUDE: include_list,
                         CONF_EXCLUDE: exclude_list,
                         CONF_HOSTS: hosts_list,
@@ -177,6 +187,8 @@ class ArpScanConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Coerce(float), vol.Range(min=0.5, max=10.0)
                 ),
                 vol.Optional(CONF_RESOLVE_HOSTNAMES, default=DEFAULT_RESOLVE_HOSTNAMES): bool,
+                vol.Optional(CONF_DEVICES_ENABLED, default=DEFAULT_DEVICES_ENABLED): bool,
+                vol.Optional(CONF_TRACK_NEW_DEVICES, default=DEFAULT_TRACK_NEW_DEVICES): bool,
                 vol.Optional(CONF_INCLUDE, default=""): str,
                 vol.Optional(CONF_EXCLUDE, default=""): str,
                 vol.Optional(CONF_HOSTS, default=""): str,
@@ -290,6 +302,12 @@ class ArpScanOptionsFlow(OptionsFlow):
                     CONF_RESOLVE_HOSTNAMES: user_input.get(
                         CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES
                     ),
+                    CONF_DEVICES_ENABLED: user_input.get(
+                        CONF_DEVICES_ENABLED, DEFAULT_DEVICES_ENABLED
+                    ),
+                    CONF_TRACK_NEW_DEVICES: user_input.get(
+                        CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES
+                    ),
                     CONF_INCLUDE: include_list,
                     CONF_EXCLUDE: exclude_list,
                     CONF_HOSTS: hosts_list,
@@ -323,6 +341,18 @@ class ArpScanOptionsFlow(OptionsFlow):
                     CONF_RESOLVE_HOSTNAMES,
                     default=self.config_entry.options.get(
                         CONF_RESOLVE_HOSTNAMES, DEFAULT_RESOLVE_HOSTNAMES
+                    ),
+                ): bool,
+                vol.Required(
+                    CONF_DEVICES_ENABLED,
+                    default=self.config_entry.options.get(
+                        CONF_DEVICES_ENABLED, DEFAULT_DEVICES_ENABLED
+                    ),
+                ): bool,
+                vol.Required(
+                    CONF_TRACK_NEW_DEVICES,
+                    default=self.config_entry.options.get(
+                        CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES
                     ),
                 ): bool,
                 vol.Optional(

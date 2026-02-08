@@ -1,5 +1,11 @@
 ## Changelog
 
+### 2.0.9
+
+- Added **Enable Found Devices** option to enable/disable all device tracker entities
+- Added **Track New Devices** option to control auto-creation of entities for newly discovered devices
+- Fixed mypy type errors in scanner.py
+
 ### 2.0.8
 
 - Added ZeroTier/VPN Hosts option to probe specific IPs instead of network scanning

@@ -11,6 +11,8 @@
                     "consider_home": "Consider Home",
                     "timeout": "ARP Timeout",
                     "resolve_hostnames": "Resolve Hostnames (DNS)",
+                    "devices_enabled": "Enable Found Devices",
+                    "track_new_devices": "Track New Devices",
                     "include": "Include IPs",
                     "exclude": "Exclude IPs",
                     "hosts": "ZeroTier/VPN Hosts (IPs)"
@@ -22,6 +24,8 @@
                     "consider_home": "How long to wait before marking a device as not home (10-1800 seconds)",
                     "timeout": "Timeout for each ARP request (0.5-10 seconds)",
                     "resolve_hostnames": "Look up device hostnames via reverse DNS lookup",
+                    "devices_enabled": "Enable newly found device tracker entities by default. When disabled, new entities are added but disabled in the entity registry.",
+                    "track_new_devices": "Automatically create device tracker entities for newly discovered devices. When disabled, only previously known devices are tracked.",
                     "include": "Only track devices with these IP addresses (comma-separated list)",
                     "exclude": "Skip tracking devices with these IP addresses (comma-separated list)",
                     "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.)"
@@ -47,6 +51,8 @@
                     "consider_home": "Consider Home",
                     "timeout": "ARP Timeout",
                     "resolve_hostnames": "Resolve Hostnames (DNS)",
+                    "devices_enabled": "Enable Found Devices",
+                    "track_new_devices": "Track New Devices",
                     "hosts": "ZeroTier/VPN Hosts (IPs)",
                     "include": "Include IPs",
                     "exclude": "Exclude IPs"
@@ -56,6 +62,8 @@
                     "consider_home": "How long to wait before marking a device as not home (10-1800 seconds)",
                     "timeout": "Timeout for each ARP request (0.5-10 seconds)",
                     "resolve_hostnames": "Look up device hostnames via reverse DNS lookup (may slow down scans)",
+                    "devices_enabled": "Enable newly found device tracker entities by default. When disabled, new entities are added but disabled in the entity registry.",
+                    "track_new_devices": "Automatically create device tracker entities for newly discovered devices. When disabled, only previously known devices are tracked.",
                     "hosts": "Probe only these IPs instead of scanning the network (for ZeroTier, WireGuard, Tailscale, etc.)",
                     "include": "Only track devices with these IP addresses (comma-separated list)",
                     "exclude": "Skip tracking devices with these IP addresses (comma-separated list)"

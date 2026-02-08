@@ -23,9 +23,13 @@ from .const import (
     ATTR_MAC,
     ATTR_VENDOR,
     CONF_CONSIDER_HOME,
+    CONF_DEVICES_ENABLED,
     CONF_INTERFACE,
+    CONF_TRACK_NEW_DEVICES,
     DATA_COORDINATOR,
     DEFAULT_CONSIDER_HOME,
+    DEFAULT_DEVICES_ENABLED,
+    DEFAULT_TRACK_NEW_DEVICES,
     DOMAIN,
 )
 
@@ -46,6 +50,8 @@ async def async_setup_entry(
     if isinstance(consider_home, timedelta):
         consider_home = int(consider_home.total_seconds())
     interface = entry.data.get(CONF_INTERFACE, "unknown")
+    devices_enabled = entry.options.get(CONF_DEVICES_ENABLED, DEFAULT_DEVICES_ENABLED)
+    track_new_devices = entry.options.get(CONF_TRACK_NEW_DEVICES, DEFAULT_TRACK_NEW_DEVICES)
 
     # Track which devices we've already created entities for
     tracked_macs: set[str] = set()
@@ -73,6 +79,16 @@ async def async_setup_entry(
             )
             continue
 
+        # Update enabled/disabled state in registry based on config option
+        if devices_enabled and entity.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+            ent_reg.async_update_entity(entity.entity_id, disabled_by=None)
+            _LOGGER.info("Enabling device tracker %s (devices_enabled=True)", entity.entity_id)
+        elif not devices_enabled and entity.disabled_by is None:
+            ent_reg.async_update_entity(
+                entity.entity_id, disabled_by=er.RegistryEntryDisabler.INTEGRATION
+            )
+            _LOGGER.info("Disabling device tracker %s (devices_enabled=False)", entity.entity_id)
+
         if mac_formatted not in tracked_macs:
             tracked_macs.add(mac_formatted)
             restored_entities.append(
@@ -82,6 +98,7 @@ async def async_setup_entry(
                     consider_home=consider_home,
                     interface=interface,
                     entry_id=entry.entry_id,
+                    devices_enabled=devices_enabled,
                     restored_name=entity.original_name or entity.name,
                 )
             )
@@ -100,6 +117,10 @@ async def async_setup_entry(
     @callback
     def async_add_new_entities() -> None:
         """Add entities for newly discovered devices."""
+        if not track_new_devices:
+            _LOGGER.debug("Track new devices is disabled, skipping new entity creation")
+            return
+
         new_entities: list[ArpScanDeviceTracker] = []
 
         _LOGGER.debug("Checking for new entities: coordinator has %d devices, %d already tracked",
@@ -115,6 +136,7 @@ async def async_setup_entry(
                         consider_home=consider_home,
                         interface=interface,
                         entry_id=entry.entry_id,
+                        devices_enabled=devices_enabled,
                     )
                 )
                 _LOGGER.info("Creating NEW device tracker entity for MAC %s (IP: %s, hostname: %s)",
@@ -144,6 +166,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         consider_home: int,
         interface: str,
         entry_id: str,
+        devices_enabled: bool = True,
         restored_name: str | None = None,
     ) -> None:
         """Initialize the device tracker."""
@@ -153,6 +176,7 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         self._consider_home = consider_home
         self._interface = interface
         self._entry_id = entry_id
+        self._attr_entity_registry_enabled_default = devices_enabled
         self._last_seen: datetime | None = dt_util.utcnow() - timedelta(days=365)
 
         # Get initial device data

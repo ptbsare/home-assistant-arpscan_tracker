@@ -14,6 +14,8 @@ CONF_EXCLUDE: Final = "exclude"
 CONF_TIMEOUT: Final = "timeout"
 CONF_RESOLVE_HOSTNAMES: Final = "resolve_hostnames"
 CONF_HOSTS: Final = "hosts"
+CONF_DEVICES_ENABLED: Final = "devices_enabled"
+CONF_TRACK_NEW_DEVICES: Final = "track_new_devices"
 
 # Defaults
 DEFAULT_SCAN_INTERVAL: Final = 15  # seconds
@@ -22,6 +24,8 @@ DEFAULT_TIMEOUT: Final = 1.5  # seconds
 DEFAULT_INTERFACE: Final = None  # Auto-detect
 DEFAULT_NETWORK: Final = None  # Auto-detect from interface
 DEFAULT_RESOLVE_HOSTNAMES: Final = True
+DEFAULT_DEVICES_ENABLED: Final = True
+DEFAULT_TRACK_NEW_DEVICES: Final = True
 
 # Platforms
 PLATFORMS: Final = ["device_tracker"]

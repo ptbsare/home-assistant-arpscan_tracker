@@ -81,6 +81,8 @@ Alternatively:
 | **Consider Home** | 180 seconds | Time before marking device as not_home (10-1800) |
 | **ARP Timeout** | 1.0 seconds | Timeout for each ARP request (0.5-10) |
 | **Resolve Hostnames** | Enabled | Look up device hostnames via reverse DNS |
+| **Enable Found Devices** | Enabled | Enable newly found device tracker entities by default |
+| **Track New Devices** | Enabled | Automatically create entities for newly discovered devices |
 | **Specific Hosts** | Empty | Probe only these IPs (for ZeroTier/VPN networks) |
 | **Include IPs** | Empty | Only track these IP addresses (comma-separated) |
 | **Exclude IPs** | Empty | Skip tracking these IP addresses (comma-separated) |
@@ -105,7 +107,8 @@ After initial setup, you can modify settings via:
 > [!NOTE]
 > All device trackers are separate devices—they aren't linked to ARP-Scanner instance by design.
 > If you see devices linked to the ARP-Scanner in the UI, it's Home Assistant linking other known devices because of MAC address matches.
-> All found devices are disabled by default, so you need to enable them in the Home Assistant UI.
+> When **Enable Found Devices** is off, new device trackers are added but disabled by default—enable them in the Home Assistant UI.
+> When **Track New Devices** is off, only previously known devices are tracked—new discoveries are ignored.
 
 ## Migration from YAML
 
