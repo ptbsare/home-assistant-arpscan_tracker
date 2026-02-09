@@ -172,6 +172,10 @@ class ArpScanner:
 
     def _lookup_hostname(self, ip: str) -> str | None:
         """Look up hostname via reverse DNS."""
+        # Save and set explicit timeout to ensure we wait long enough
+        # for local DNS servers (routers) to respond
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(5.0)
         try:
             hostname, _, _ = socket.gethostbyaddr(ip)
 
@@ -202,6 +206,8 @@ class ArpScanner:
         except (socket.herror, socket.gaierror, OSError):
             # No reverse DNS entry
             return None
+        finally:
+            socket.setdefaulttimeout(old_timeout)
 
     def _get_interface_info(self, interface: str) -> tuple[str | None, str | None]:
         """Get IP and MAC address for an interface.

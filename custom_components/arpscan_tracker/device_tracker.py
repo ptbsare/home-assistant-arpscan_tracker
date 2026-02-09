@@ -184,16 +184,19 @@ class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
         ip_address = device_data.get("ip", "unknown")
         hostname = device_data.get("hostname")
 
-        # Display name: hostname if known, then vendor, then restored name, then IP, then MAC
+        # Display name priority:
+        # 1. Restored name (preserves user-set or previously discovered names)
+        # 2. Hostname from DNS
+        # 3. IP address with underscores
+        # 4. MAC address
+        # Vendor is kept as a state attribute only, not used in entity name/id
         vendor = device_data.get("vendor")
-        if hostname:
-            self._attr_name = hostname
-        elif vendor and vendor != "Unknown":
-            self._attr_name = vendor
-        elif restored_name:
+        if restored_name:
             self._attr_name = restored_name
+        elif hostname:
+            self._attr_name = hostname
         elif ip_address and ip_address != "unknown":
-            self._attr_name = ip_address
+            self._attr_name = ip_address.replace(".", "_")
         else:
             self._attr_name = self._mac
 
