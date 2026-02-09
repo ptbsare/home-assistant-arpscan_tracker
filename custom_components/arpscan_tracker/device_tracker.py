@@ -158,6 +158,10 @@ async def async_setup_entry(
 class ArpScanDeviceTracker(CoordinatorEntity, RestoreEntity, ScannerEntity):
     """Representation of a device tracked via ARP scan."""
 
+    # Override ScannerEntity's default entity_category=DIAGNOSTIC which causes
+    # all entities to be disabled by default regardless of devices_enabled option
+    _attr_entity_category = None
+
 
     def __init__(
         self,
